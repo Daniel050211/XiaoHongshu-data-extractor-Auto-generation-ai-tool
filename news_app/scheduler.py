@@ -7,7 +7,11 @@ import sys
 from pathlib import Path
 
 TASK_NAME = "佛山新聞 AI"
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# exe 模式：專案根目錄 = exe 所在資料夾，排程設定才會持久化
+if getattr(sys, "frozen", False):
+    PROJECT_ROOT = Path(sys.executable).resolve().parent
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "data" / "news_schedule_config.json"
 
 

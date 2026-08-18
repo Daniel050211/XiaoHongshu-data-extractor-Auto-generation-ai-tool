@@ -3,8 +3,15 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import sys
 from datetime import datetime
 from pathlib import Path
+
+# exe 模式：專案根目錄 = exe 所在資料夾，避免 data/ 指到 PyInstaller 暫存夾
+if getattr(sys, "frozen", False):
+    PROJECT_ROOT = Path(sys.executable).resolve().parent
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -223,7 +230,7 @@ def run_events(conn, run_id: int) -> list[dict]:
 
 def latest_feedback_from_xhs(account: str = "") -> str:
     """從既有 XHS 報表資料庫讀指定帳號的最新摘要，作為發布策略依據；讀不到就回傳空字串。"""
-    db = Path(__file__).resolve().parent.parent / "data" / "xhs.db"
+    db = PROJECT_ROOT / "data" / "xhs.db"
     if not db.exists():
         return ""
     try:
