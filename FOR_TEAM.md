@@ -45,6 +45,7 @@
 - 帳號都在 `config/news_accounts/` 資料夾（一個帳號一個檔）
 - 用 App 的「帳號」分頁管理即可（新增/編輯/啟用停用/預覽 prompt）
 - `run_weekly.py` 的帳號名與新聞帳號名一致，新聞線才會讀到該帳號自己的週報回饋
+- `FoshanNewsAI.exe` 和 `XHSWeeklyReport.exe` 要放在**同一個資料夾**，新聞 App 是讀 exe 旁的 `data/xhs.db` 取得最新週報回饋；每週先跑週報、再跑新聞，就會自動用最新一週的建議
 
 ## 五、常見問題
 
