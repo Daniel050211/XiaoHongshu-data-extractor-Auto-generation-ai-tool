@@ -160,14 +160,16 @@ class NewsConfig:
             fixtures_dir=data_dir / "fixtures",
             schedule_time=str(g("schedule", "run_time", default="14:00")),
             serper_api_key=os.getenv("SERPER_API_KEY", ""),
-            search_query=os.getenv("NEWS_SEARCH_QUERY", str(g("search", "query", default=cfg_defaults.search_query))),
+            # 空的環境變數視為「未設定」，回退到 config.yaml / 內建預設，
+            # 避免 App 設定頁把空的 NEWS_SEARCH_QUERY 寫入 .env 後覆蓋預設關鍵字
+            search_query=os.getenv("NEWS_SEARCH_QUERY") or str(g("search", "query", default=cfg_defaults.search_query)),
             search_num=int(g("search", "num", default=10)),
             search_gl=str(g("search", "gl", default="cn")),
             search_hl=str(g("search", "hl", default="zh-cn")),
             search_tbs=str(g("search", "tbs", default="qdr:w")),
             ai_api_key=os.getenv("AI_API_KEY", ""),
             ai_base_url=os.getenv("AI_BASE_URL", "https://openrouter.ai/api/v1"),
-            ai_model=os.getenv("NEWS_AI_MODEL", os.getenv("AI_MODEL", "z-ai/glm-5.2")),
+            ai_model=os.getenv("NEWS_AI_MODEL") or os.getenv("AI_MODEL") or "z-ai/glm-5.2",
             ai_temperature=float(g("ai", "temperature", default=0.4)),
             direction_max_retries=int(g("retries", "direction_max", default=2)),
             script_max_retries=int(g("retries", "script_max", default=2)),

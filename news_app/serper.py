@@ -30,8 +30,14 @@ def search(cfg, query: str | None = None, num: int | None = None,
         "X-API-KEY": cfg.serper_api_key,
         "Content-Type": "application/json",
     }
+    q = (query or cfg.search_query or "").strip()
+    if not q:
+        raise RuntimeError(
+            "搜尋關鍵字為空：請在 config.yaml 的 news.search.query 填寫，"
+            "或到 App「設定」分頁填寫搜尋關鍵字。"
+        )
     payload = {
-        "q": query or cfg.search_query,
+        "q": q,
         "num": num or cfg.search_num,
         "gl": cfg.search_gl,
         "hl": cfg.search_hl,
