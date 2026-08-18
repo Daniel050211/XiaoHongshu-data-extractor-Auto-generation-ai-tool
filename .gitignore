@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Local data (SQLite, exports, reports, sample files)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# PyInstaller 打包產物
+build/
+dist/
+XHSWeeklyReport.exe
+FoshanNewsAI.exe
+
+# OS / editor
+Thumbs.db
+.DS_Store
+*.log

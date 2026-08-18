@@ -1,0 +1,107 @@
+# 每週小紅書分析設定（機密資料請放 .env，不要放這裡）
+
+schedule:
+  run_day: friday        # 每週五跑一次
+  run_time: "09:00"      # 香港時間早上 9 點
+
+# 週次定義：固定 7 天區塊，從 anchor 開始
+# W1 = anchor .. anchor+6, W2 = anchor+7 .. anchor+13, ...
+weeks:
+  anchor: "2026-07-01"   # 第一週起點（W1 = 7/1–7/7）
+  block_size_days: 7
+  min_window_hours: 48   # 發布滿 48 小時才算「完整數據」，否則標記為初步
+
+# 多帳號模式：每個帳號一份 Excel，獨立分析與報告
+# 建議用應用程式的「連結」頁管理（會寫入 data/accounts.json）
+accounts: []
+# 每個帳號可指定自己的收件人（報告只寄給該帳號的人）：
+# accounts:
+#   - name: "佛山產業號"
+#     excel_path: "data/accounts/佛山產業號.xlsx"
+#     email_to: ["industry-owner@example.com"]
+#   - name: "佛山旅遊號"
+#     excel_path: "data/accounts/佛山旅遊號.xlsx"
+#     email_to: ["travel-owner@example.com"]
+
+# 帖文連結來源：excel 或 google
+link_source:
+  type: excel            # excel | google
+  excel_path: "data/posts.xlsx"
+  # 自動找表頭含 url / 連結 / link 的欄位；找不到就當第一欄
+
+  # 如果用 Google Sheets：
+  google_sheet_id: ""    # 網址 /d/<id>/ 當中的 id
+  google_gid: 0
+  # 私人 sheet 才需要 service account JSON（留空時會嘗試公開匯出）
+  google_service_account_json: ""
+
+# Apify 抓取
+apify:
+  actor_id: "svGBZz6n79YbeA3uS"
+  mode: post_details     # post_details（從連結清單）| user_posts（從帳號自動抓）
+  max_results: 100
+  proxy: RESIDENTIAL
+  network_capture: false
+  cookie_string: ""      # 登入小紅書後的 Cookie（選填；解決匿名抓取被限流的問題）
+  # 用 user_posts 模式時，填帳號 profile 網址：
+  user_urls: []
+
+# AI 分析（OpenAI 相容 API）
+ai:
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4o-mini"
+  temperature: 0.3
+
+# 報告輸出
+report:
+  output_dir: "data/reports"
+  export_csv: true
+  export_pdf: true
+
+# 電郵（帳號密碼放 .env）
+email:
+  smtp_host: "smtp.office365.com"
+  smtp_port: 587
+  use_tls: false         # true = SSL(465), false = STARTTLS(587)
+  from: ""               # Resend 寄件人地址（未填時用 SMTP_USER 或 onboarding@resend.dev）
+  to:
+    - "jenniferyu@k11byac.com"
+  cc: []
+  subject_prefix: "[小紅書週報]"
+
+# ===================== Foshan News AI (n8n "Schedule Trigger" line) =====================
+news:
+  schedule:
+    run_time: "14:00"          # daily run time (HKT)
+  # 多帳號新聞線：每個帳號有自己的搜尋、受眾、主題與語氣。
+  # 每個帳號一個 yaml 檔（config/news_accounts/ 資料夾）：改一個帳號不會影響其他帳號，
+  # 單一檔案壞掉也只會跳過該帳號。未設定任何帳號時，使用單一 default 帳號。
+  accounts_dir: "config/news_accounts"
+  accounts: []                  # 也可以直接在這裡列帳號（會與 accounts_dir 合併）
+  search:
+    query: "佛山 人工智能 新能源 新材料 无人机"
+    num: 10
+    gl: "cn"
+    hl: "zh-cn"
+    tbs: "qdr:w"
+  retries:
+    direction_max: 2           # max retries after direction rejection
+    script_max: 2              # max retries after script rejection
+  ai:
+    temperature: 0.4
+  web:
+    enabled: true             # 本機審批表單伺服器（寄信時附表單連結）
+    port: 18765
+  mail:
+    watch: true               # 自動監看 Email 回覆（App 啟動時；或 run_news.py --watch-mail）
+    watch_interval_sec: 45
+  email:
+    subject_prefix: "[Foshan News AI]"
+    # to: falls back to EMAIL_TO in .env
+  google:
+    enabled: false             # enable to sync to Google Sheets (needs service account)
+    sheet_id: "1S1wEubVTlxNklgQT4ncz76D8g_zU9h1X_vXWsZvcRRU"
+    gid_articles: 1683679047   # sheet 3: news articles
+    gid_analysis: 1088287865   # sheet 4: deep analysis
+    gid_scripts: 717831188     # sheet 5: script drafts
+    gid_script_publish: 811493070  # Scripts: published script
