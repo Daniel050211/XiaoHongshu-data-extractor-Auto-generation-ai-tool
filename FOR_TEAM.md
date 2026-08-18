@@ -19,7 +19,7 @@
 | `AI_API_KEY` | https://openrouter.ai/keys | AI 分析（必填） |
 | `EMAIL_PROVIDER` + 寄信 key | 見下面「寄信」 | 通知信（建議填） |
 
-也可直接開 App → 「設定」分頁填，存檔即生效。
+也可直接開 App → 「設定」分頁填，存檔即生效。設定會存到 **exe 旁邊的 `.env`**，下次重開 App 會自動帶出，不需要重填。
 
 ## 三、寄信（重要）
 

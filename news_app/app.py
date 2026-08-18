@@ -30,7 +30,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from news_app import account_store, mailwatch, pipeline, prompts, scheduler, store, web  # noqa: E402
 from news_app.config import NewsAccount, NewsConfig  # noqa: E402
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# exe 模式：一律以「exe 所在資料夾」為專案根目錄，避免 .env / data 寫進
+# PyInstaller 的暫存解壓資料夾（關閉 App 後會被刪除，導致設定每次都要重填）
+if getattr(sys, "frozen", False):
+    PROJECT_ROOT = Path(sys.executable).resolve().parent
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = PROJECT_ROOT / ".env"
 DB_PATH = PROJECT_ROOT / "data" / "news.db"
 
