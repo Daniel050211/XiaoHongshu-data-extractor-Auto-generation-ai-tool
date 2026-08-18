@@ -32,6 +32,7 @@ from links import read_urls, save_urls
 from models import fetch_models, model_options, save_cached
 from scheduler import DAY_LABELS, DAYS, apply_schedule, get_task_status, load_config, run_now, save_config
 from settings import load_env, save_env
+from xhs_report import storage
 from xhs_report.config import Config
 
 if getattr(sys, "frozen", False):
@@ -712,6 +713,17 @@ class App(tk.Tk):
         save_urls(path, [])
         self.accounts.append({"name": name, "excel_path": path})
         save_accounts(self.accounts)
+        # 同步更新資料庫中的帳號名稱（讓該帳號的分析數據跟著改名）
+        try:
+            db_cfg = Config.load()
+            db_conn = storage.connect(db_cfg.db_path)
+            db_conn.execute("UPDATE posts SET account=? WHERE account=?", (new, old))
+            db_conn.execute("UPDATE summaries SET account=? WHERE account=?", (new, old))
+            db_conn.execute("UPDATE runs SET account=? WHERE account=?", (new, old))
+            db_conn.commit()
+            db_conn.close()
+        except Exception:  # noqa: BLE001
+            pass
         self._reload_account_combo()
         self.account_var.set(name)
         self._refresh_links()
@@ -745,7 +757,14 @@ class App(tk.Tk):
             if a["name"] == old:
                 a["name"] = new
                 p = Path(a["excel_path"])
-                if p.parent.name == "accounts" and p.stem == old and p.exists():
+                if p.parent.name == "data" and p.name == "posts.xlsx":
+                    # legacy 預設檔：搬進帳號自己的 Excel
+                    new_path = PROJECT_ROOT / "data" / "accounts" / f"{new}.xlsx"
+                    if p.exists() and not new_path.exists():
+                        new_path.parent.mkdir(parents=True, exist_ok=True)
+                        p.rename(new_path)
+                    a["excel_path"] = str(new_path)
+                elif p.parent.name == "accounts" and p.stem == old and p.exists():
                     new_path = p.parent / f"{new}.xlsx"
                     p.rename(new_path)
                     a["excel_path"] = str(new_path)
