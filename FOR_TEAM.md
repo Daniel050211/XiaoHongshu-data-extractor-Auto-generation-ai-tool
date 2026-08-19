@@ -47,7 +47,24 @@
 - `run_weekly.py` 的帳號名與新聞帳號名一致，新聞線才會讀到該帳號自己的週報回饋
 - `FoshanNewsAI.exe` 和 `XHSWeeklyReport.exe` 要放在**同一個資料夾**，新聞 App 是讀 exe 旁的 `data/xhs.db` 取得最新週報回饋；每週先跑週報、再跑新聞，就會自動用最新一週的建議
 
-## 五、常見問題
+## 五、手機開審批表單（選填）
+
+想讓同事用手機點 email 裡的連結填表單（像 n8n 那樣）：
+
+1. 註冊自己的 ngrok 帳號（免費）：https://ngrok.com/download，下載 `ngrok.exe` 放回本資料夾
+2. ngrok Dashboard 複製 Authtoken 與 Static Domain（例如 `你的名字.ngrok-free.dev`）
+3. 第一次先登入一次：`ngrok config add-authtoken 你的Authtoken`
+4. 在 `.env` 填：
+   ```
+   FORM_PUBLIC_URL=https://你的名字.ngrok-free.dev
+   FORM_TOKEN=自己亂打的英文數字
+   ```
+5. 把 `start-ngrok.cmd` 裡的網址換成你自己的，雙擊執行（或放進「啟動」資料夾讓開機自動跑）
+6. 打開 App → 之後 email 裡的表單連結就是手機可開的網址
+
+> 提醒：表單只在「電腦開著 + App 開著 + 隧道跑著」時可用；手機第一次開會看到 ngrok 的「Visit Site」警示頁，點過去即可；`FORM_TOKEN` 是安全碼，不要外傳。
+
+## 六、常見問題
 
 - **視窗開不出來**：確認 exe 在資料夾根目錄（與 config.yaml 同層），且資料夾有完整權限
 - **搜尋失敗**：`.env` 的 `SERPER_API_KEY` 沒填或填錯
