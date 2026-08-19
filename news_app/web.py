@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import html
+import hmac
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -15,7 +16,11 @@ from . import pipeline, store
 
 
 def approval_url(cfg, run_id: int) -> str:
-    return f"http://127.0.0.1:{cfg.web_port}/approve/{run_id}"
+    base = (cfg.form_public_url or f"http://127.0.0.1:{cfg.web_port}").rstrip("/")
+    url = f"{base}/approve/{run_id}"
+    if cfg.form_token:
+        url += f"?token={cfg.form_token}"
+    return url
 
 
 def _page(title: str, body: str, refresh: int | None = None) -> str:
@@ -84,6 +89,7 @@ def _direction_form(cfg, run) -> str:
     run_id = run["id"]
     directions = store.get_directions(conn, run_id)
     conn.close()
+    action = f"/approve/{run_id}" + (f"?token={cfg.form_token}" if cfg.form_token else "")
     body = (
         f"<h1>選擇分析方向</h1>"
         f"<p>{_status_badge(run['status'])}　run #{run_id}</p>"
@@ -110,7 +116,7 @@ def _direction_form(cfg, run) -> str:
         '<textarea name="comment" placeholder="例如：方向太散，請聚焦新能源…"></textarea>'
         '<div class="actions"><button type="submit">送出審批</button></div>'
     )
-    return _page("方向選擇", f'<form method="post" action="/approve/{run_id}">{body}</form>')
+    return _page("方向選擇", f'<form method="post" action="{action}">{body}</form>')
 
 
 def _script_form(cfg, run) -> str:
@@ -118,6 +124,7 @@ def _script_form(cfg, run) -> str:
     run_id = run["id"]
     versions = store.get_versions(conn, run_id)
     conn.close()
+    action = f"/approve/{run_id}" + (f"?token={cfg.form_token}" if cfg.form_token else "")
     body = (
         f"內容審核：小紅書草稿</h1>"
         f"<p>{_status_badge(run['status'])}　run #{run_id}</p>"
@@ -143,18 +150,19 @@ def _script_form(cfg, run) -> str:
         '<textarea name="comment" placeholder="例如：語氣太硬，請更生活化…"></textarea>'
         '<div class="actions"><button type="submit">送出審批</button></div>'
     )
-    return _page("腳本審核", f'<form method="post" action="/approve/{run_id}">{body}</form>')
+    return _page("腳本審核", f'<form method="post" action="{action}">{body}</form>')
 
 
-def _status_page(run) -> str:
+def _status_page(cfg, run) -> str:
     run_id = run.get("id") or 0
+    qs = f"?token={cfg.form_token}" if cfg.form_token else ""
     lines = [f"<h1>審批結果（run #{run_id}）</h1>", f"<p>{_status_badge(run.get('status', ''))}</p>"]
     status = run.get("status")
     if status == pipeline.STATUS_AWAIT_DIRECTION:
         lines.append('<p>還在等方向審批——請回到上一頁填寫表單，或重新整理。</p>')
     elif status == pipeline.STATUS_AWAIT_SCRIPT:
         lines.append('<p>方向已批准，AI 正在生成深度分析與腳本…（通常 4–6 分鐘）</p>')
-        lines.append(f'<p><a href="/approve/{run_id}">刷新表單</a>，完成後會變成「腳本審批」。</p>')
+        lines.append(f'<p><a href="/approve/{run_id}{qs}">刷新表單</a>，完成後會變成「腳本審批」。</p>')
     elif status == pipeline.STATUS_DONE:
         lines.append(f"<p><strong>Tagline：</strong>{_esc(run.get('tagline'))}</p>")
         lines.append(f"<p><strong>Image Prompt：</strong></p><pre>{_esc(run.get('image_prompt'))}</pre>")
@@ -172,6 +180,14 @@ class _Handler(BaseHTTPRequestHandler):
     def _cfg(self):
         return self.server.cfg  # type: ignore[attr-defined]
 
+    def _token_ok(self, parsed) -> bool:
+        cfg = self._cfg()
+        if not cfg.form_token:
+            return True
+        qs = parse_qs(parsed.query)
+        got = (qs.get("token") or [""])[0]
+        return hmac.compare_digest(got, cfg.form_token)
+
     def _send(self, status: int, body: str):
         data = body.encode("utf-8")
         self.send_response(status)
@@ -185,6 +201,9 @@ class _Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         parts = parsed.path.strip("/").split("/")
         if len(parts) == 2 and parts[0] == "approve" and parts[1].isdigit():
+            if not self._token_ok(parsed):
+                self._send(403, _page("無權限", "<h1>連結無效</h1><p>網址缺少或帶錯安全碼，請從 Email 重新點開。</p>"))
+                return
             run_id = int(parts[1])
             conn = store.connect_from_cfg(self._cfg())
             run = store.get_run(conn, run_id)
@@ -197,7 +216,7 @@ class _Handler(BaseHTTPRequestHandler):
             elif run["status"] == pipeline.STATUS_AWAIT_SCRIPT:
                 self._send(200, _script_form(self._cfg(), run))
             else:
-                self._send(200, _status_page(run))
+                self._send(200, _status_page(self._cfg(), run))
             return
         self._send(200, _page("佛山產業新聞 AI", "<h1>佛山產業新聞 AI</h1><p>審批表單伺服器運作中。</p>"))
 
@@ -206,6 +225,9 @@ class _Handler(BaseHTTPRequestHandler):
         parts = parsed.path.strip("/").split("/")
         if not (len(parts) == 2 and parts[0] == "approve" and parts[1].isdigit()):
             self._send(404, _page("找不到", "<h1>找不到該執行</h1>"))
+            return
+        if not self._token_ok(parsed):
+            self._send(403, _page("無權限", "<h1>連結無效</h1><p>網址缺少或帶錯安全碼，請從 Email 重新點開。</p>"))
             return
         run_id = int(parts[1])
         length = int(self.headers.get("Content-Length") or 0)
@@ -221,7 +243,7 @@ class _Handler(BaseHTTPRequestHandler):
         conn = store.connect_from_cfg(cfg)
         run = store.get_run(conn, run_id)
         conn.close()
-        self._send(200, _status_page(run or {}))
+        self._send(200, _status_page(self._cfg(), run or {}))
 
     @staticmethod
     def _apply(cfg, run_id: int, decision: str, comment: str):

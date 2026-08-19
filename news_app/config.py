@@ -105,6 +105,10 @@ class NewsConfig:
     # 本機審批表單伺服器
     web_enabled: bool = True
     web_port: int = 18765
+    # 公開網址（例如 ngrok/Cloudflare 隧道），讓手機也能開表單；留空 = 只用本機網址
+    form_public_url: str = ""
+    # 表單安全碼：有設定時，網址必須帶 ?token=... 才能開/送出
+    form_token: str = ""
 
     # Email 回覆監看
     mail_watch_enabled: bool = False
@@ -175,6 +179,8 @@ class NewsConfig:
             script_max_retries=int(g("retries", "script_max", default=2)),
             web_enabled=bool(g("web", "enabled", default=True)),
             web_port=int(g("web", "port", default=18765)),
+            form_public_url=os.getenv("FORM_PUBLIC_URL", "").strip(),
+            form_token=os.getenv("FORM_TOKEN", "").strip(),
             mail_watch_enabled=bool(g("mail", "watch", default=False)),
             mail_watch_interval=int(g("mail", "watch_interval_sec", default=45)),
             mail_imap_host=os.getenv("EMAIL_IMAP_HOST", ""),

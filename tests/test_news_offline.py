@@ -327,6 +327,57 @@ class WebFormTest(unittest.TestCase):
         self.assertIn("數據型", page2)
 
 
+class WebFormTokenTest(unittest.TestCase):
+    """手機公開表單：安全碼驗證與公開網址。"""
+
+    @classmethod
+    def setUpClass(cls):
+        tmp = Path(tempfile.mkdtemp(prefix="news_web_token_"))
+        base = NewsConfig.load()
+        cls.cfg = replace(
+            base,
+            db_path=tmp / "news.db",
+            web_port=18998,
+            form_public_url="https://example.ngrok.app",
+            form_token="secret123",
+        )
+        cls.conn = store.connect(cls.cfg.db_path)
+        cls.run_id = pipeline.start_run(
+            cls.cfg, cls.conn, run_date="2026-08-17",
+            from_json=FIXTURE, dry_run=True, notify=False)
+        cls.httpd, cls.thread = web.start_server(cls.cfg)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+        cls.thread.join(timeout=5)
+        cls.conn.close()
+
+    def test_public_url_has_token(self):
+        url = web.approval_url(self.cfg, self.run_id)
+        self.assertTrue(url.startswith("https://example.ngrok.app/approve/"))
+        self.assertIn("?token=secret123", url)
+
+    def test_without_token_is_403(self):
+        local = f"http://127.0.0.1:{self.cfg.web_port}/approve/{self.run_id}"
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(local, timeout=10)
+        self.assertEqual(ctx.exception.code, 403)
+
+    def test_wrong_token_is_403(self):
+        local = f"http://127.0.0.1:{self.cfg.web_port}/approve/{self.run_id}?token=wrong"
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(local, timeout=10)
+        self.assertEqual(ctx.exception.code, 403)
+
+    def test_correct_token_opens_form(self):
+        url = f"http://127.0.0.1:{self.cfg.web_port}/approve/{self.run_id}?token=secret123"
+        with urllib.request.urlopen(url, timeout=10) as r:
+            page = r.read().decode("utf-8")
+        self.assertIn("方向 1", page)
+        self.assertIn("送出審批", page)
+
+
 class AccountStoreTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="news_accstore_"))
