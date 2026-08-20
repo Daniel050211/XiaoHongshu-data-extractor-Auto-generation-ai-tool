@@ -85,8 +85,8 @@ news:
     hl: "zh-cn"
     tbs: "qdr:w"
   retries:
-    direction_max: 2           # max retries after direction rejection
-    script_max: 2              # max retries after script rejection
+    direction_max: 5           # max retries after direction rejection
+    script_max: 5              # max retries after script rejection
   ai:
     temperature: 0.4
   web:
