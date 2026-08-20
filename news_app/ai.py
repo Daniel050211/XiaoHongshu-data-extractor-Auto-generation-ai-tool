@@ -68,7 +68,7 @@ def _fake_response(system: str) -> str:
     if "image_prompt" in system and "只輸出 JSON" in system:
         return ('{"tagline": "佛山造，正在改寫中國製造業的劇本", '
                 '"image_prompt": "畫面唯一主題是抽象幾何光影，幕牆線條在黃昏光下折射，'
-                '白色大字標題「佛山造」，優設標題圓，4:3"}')
+                '白色大字標題「佛山造」，優設標題圓，3:4 豎版"}')
     if "反差型" in system and "versions" in system:
         return ('{"versions": ['
                 '{"style": "反差型", "content": "你可能不知道，佛山最缺的不是訂單，是懂機器人的打工人。#佛山 #機器人 #產業升級"},'
