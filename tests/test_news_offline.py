@@ -277,7 +277,9 @@ class WebFormTest(unittest.TestCase):
     def setUpClass(cls):
         tmp = Path(tempfile.mkdtemp(prefix="news_web_"))
         base = NewsConfig.load()
-        cls.cfg = replace(base, db_path=tmp / "news.db", web_port=18999)
+        # 明確清空公開網址/安全碼，避免 .env 的 FORM_PUBLIC_URL 把測試導到公開隧道
+        cls.cfg = replace(base, db_path=tmp / "news.db", web_port=18999,
+                          form_public_url="", form_token="")
         cls.conn = store.connect(cls.cfg.db_path)
         cls.run_id = pipeline.start_run(
             cls.cfg, cls.conn, run_date="2026-08-17",
@@ -516,6 +518,24 @@ class MailWatchTest(unittest.TestCase):
         self.assertTrue(ok)
         args, _kwargs = m.call_args
         self.assertEqual(args[0].email_to, ["a@b.c"])
+
+
+class SchedulerHelperTest(unittest.TestCase):
+    def test_parse_days(self):
+        from news_app import scheduler
+        self.assertEqual(scheduler.parse_days("mon,wed"), ["Monday", "Wednesday"])
+        self.assertEqual(scheduler.parse_days("Monday;Friday"), ["Monday", "Friday"])
+        self.assertEqual(scheduler.parse_days(""), [])
+
+    def test_default_accounts_skip_scheduled(self):
+        from news_app import scheduler
+        accounts = [
+            {"name": "A", "enabled": True, "schedule_time": "11:00", "schedule_days": "wed"},
+            {"name": "B", "enabled": True, "schedule_time": ""},
+            {"name": "C", "enabled": False, "schedule_time": "14:00"},
+        ]
+        self.assertEqual([a["name"] for a in scheduler.scheduled_accounts(accounts)], ["A"])
+        self.assertEqual([a["name"] for a in scheduler.default_accounts(accounts)], ["B"])
 
 
 if __name__ == "__main__":

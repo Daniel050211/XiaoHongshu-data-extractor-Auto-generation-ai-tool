@@ -1,4 +1,4 @@
-"""管理 Windows 排程：每天 14:00 執行新聞線。"""
+"""管理 Windows 排程：預設排程跑「沒有自己排程」的帳號；每個帳號可有獨立排程。"""
 from __future__ import annotations
 
 import json
@@ -13,6 +13,40 @@ if getattr(sys, "frozen", False):
 else:
     PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "data" / "news_schedule_config.json"
+
+DAY_MAP = {
+    "mon": "Monday", "monday": "Monday",
+    "tue": "Tuesday", "tuesday": "Tuesday",
+    "wed": "Wednesday", "wednesday": "Wednesday",
+    "thu": "Thursday", "thursday": "Thursday",
+    "fri": "Friday", "friday": "Friday",
+    "sat": "Saturday", "saturday": "Saturday",
+    "sun": "Sunday", "sunday": "Sunday",
+}
+
+
+def parse_days(days) -> list[str]:
+    """把 mon,wed 轉成 Windows 用的 Monday,Wednesday；空則回 []（表示每天）。"""
+    out: list[str] = []
+    for d in str(days or "").replace(";", ",").split(","):
+        d = d.strip().lower()
+        if d in DAY_MAP and DAY_MAP[d] not in out:
+            out.append(DAY_MAP[d])
+    return out
+
+
+def has_own_schedule(acc: dict) -> bool:
+    return bool(str(acc.get("schedule_time") or "").strip())
+
+
+def scheduled_accounts(accounts: list[dict]) -> list[dict]:
+    """啟用且有自己排程時間的帳號（各自建立獨立任務）。"""
+    return [a for a in accounts if a.get("enabled", True) and has_own_schedule(a)]
+
+
+def default_accounts(accounts: list[dict]) -> list[dict]:
+    """啟用但沒有自己排程的帳號（歸預設排程管）。"""
+    return [a for a in accounts if a.get("enabled", True) and not has_own_schedule(a)]
 
 
 def default_config() -> dict:
@@ -46,12 +80,19 @@ def _run_ps(script: str) -> subprocess.CompletedProcess:
 
 def get_task_status() -> dict:
     script = f"""$t = Get-ScheduledTask -TaskName '{TASK_NAME}' -ErrorAction SilentlyContinue
-if (-not $t) {{ Write-Output 'STATE=MISSING'; exit }}
+if (-not $t) {{ Write-Output 'STATE=MISSING' }} else {{
 $i = Get-ScheduledTaskInfo -TaskName '{TASK_NAME}'
 Write-Output "STATE=$($t.State)"
 Write-Output "LAST=$($i.LastRunTime)"
 Write-Output "NEXT=$($i.NextRunTime)"
 Write-Output "RESULT=$($i.LastTaskResult)"
+}}
+$accs = Get-ScheduledTask | Where-Object {{ $_.TaskName -like '{TASK_NAME} - *' }} | Sort-Object TaskName
+$accOut = foreach ($a in $accs) {{
+  $ai = Get-ScheduledTaskInfo -TaskName $a.TaskName
+  "$($a.TaskName)|$($a.State)|$($ai.NextRunTime)"
+}}
+Write-Output "ACCTASKS=$($accOut -join ';')"
 """
     r = _run_ps(script)
     out: dict[str, str] = {}
@@ -64,29 +105,82 @@ Write-Output "RESULT=$($i.LastTaskResult)"
 
 def apply_schedule(cfg: dict) -> str:
     save_config(cfg)
-    if not cfg.get("enabled"):
-        script = f"Unregister-ScheduledTask -TaskName '{TASK_NAME}' -Confirm:$false -ErrorAction SilentlyContinue"
-        _run_ps(script)
-        return "已停用（移除每日自動執行）"
-
     proj = str(PROJECT_ROOT)
-    time_str = f"{int(cfg.get('hour', 14)):02d}:{int(cfg.get('minute', 0)):02d}"
     if getattr(sys, "frozen", False):
         action_exec = sys.executable
-        action_args = "--run"
+        default_args = "--run --skip-scheduled"
     else:
         action_exec = sys.executable
-        action_args = "run_news.py --run"
-    script = f"""$action = New-ScheduledTaskAction -Execute '{action_exec}' -Argument '{action_args}' -WorkingDirectory '{proj}'
-$trigger = New-ScheduledTaskTrigger -Daily -At '{time_str}'
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 6)
-$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
-Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
-"""
-    r = _run_ps(script)
+        default_args = "run_news.py --run --skip-scheduled"
+
+    settings = ("$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable "
+                "-ExecutionTimeLimit (New-TimeSpan -Hours 6)")
+    principal = ("$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME "
+                 "-LogonType Interactive -RunLevel Limited")
+
+    parts: list[str] = []
+    summary: list[str] = []
+
+    # 1) 預設排程（只跑「沒有自己排程」的啟用帳號）
+    if not cfg.get("enabled"):
+        parts.append(
+            f"Unregister-ScheduledTask -TaskName '{TASK_NAME}' -Confirm:$false -ErrorAction SilentlyContinue"
+        )
+        summary.append("預設排程已停用")
+    else:
+        time_str = f"{int(cfg.get('hour', 14)):02d}:{int(cfg.get('minute', 0)):02d}"
+        parts.append(
+            f"$action = New-ScheduledTaskAction -Execute '{action_exec}' -Argument '{default_args}' -WorkingDirectory '{proj}'\n"
+            f"$trigger = New-ScheduledTaskTrigger -Daily -At '{time_str}'\n"
+            f"{settings}\n{principal}\n"
+            f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $action -Trigger $trigger "
+            f"-Settings $settings -Principal $principal -Force | Out-Null"
+        )
+        summary.append(f"預設排程：每天 {time_str}")
+
+    # 2) 每個帳號自己的排程
+    try:
+        from . import account_store
+        accounts = account_store.list_accounts()
+    except Exception:  # noqa: BLE001
+        accounts = []
+    desired: set[str] = set()
+    for acc in scheduled_accounts(accounts):
+        name = str(acc.get("name") or "")
+        tname = f"{TASK_NAME} - {name}"
+        desired.add(tname)
+        time_str = str(acc.get("schedule_time") or "").strip()
+        if ":" not in time_str:
+            continue
+        days = parse_days(acc.get("schedule_days"))
+        if days:
+            trigger = f"New-ScheduledTaskTrigger -Weekly -DaysOfWeek {','.join(days)} -At '{time_str}'"
+            day_label = "、".join(days)
+        else:
+            trigger = f"New-ScheduledTaskTrigger -Daily -At '{time_str}'"
+            day_label = "每天"
+        account_args = f"--run --account {name}"
+        parts.append(
+            f"$action = New-ScheduledTaskAction -Execute '{action_exec}' -Argument '{account_args}' -WorkingDirectory '{proj}'\n"
+            f"$trigger = {trigger}\n"
+            f"{settings}\n{principal}\n"
+            f"Register-ScheduledTask -TaskName '{tname}' -Action $action -Trigger $trigger "
+            f"-Settings $settings -Principal $principal -Force | Out-Null"
+        )
+        summary.append(f"「{name}」：{day_label} {time_str}")
+
+    # 3) 清掉已刪除/停用帳號的舊任務
+    keep = "', '".join(sorted(desired))
+    parts.append(
+        f"$keep = @('{keep}')\n"
+        f"Get-ScheduledTask | Where-Object {{ $_.TaskName -like '{TASK_NAME} - *' -and $keep -notcontains $_.TaskName }} "
+        "| ForEach-Object { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false }"
+    )
+
+    r = _run_ps("\n".join(parts))
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout or "").strip()[:300])
-    return f"已設定：每天 {time_str} 自動執行新聞線"
+    return "排程已套用：" + "；".join(summary)
 
 
 def run_now() -> str:

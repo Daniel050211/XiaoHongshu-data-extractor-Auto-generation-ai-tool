@@ -847,6 +847,8 @@ class NewsApp(tk.Tk):
             ("audience", "目標讀者"), ("topics", "關注主題"),
             ("tone", "語氣風格"), ("hashtags", "常用標籤"),
             ("email_to", "收件人（逗號分隔）"),
+            ("schedule_time", "排程時間（HH:MM，留空=無）"),
+            ("schedule_days", "排程星期（mon,wed…留空=每天）"),
         ]
         for key, label in row_specs:
             r = tk.Frame(form, bg=CARD)
@@ -1055,14 +1057,17 @@ class NewsApp(tk.Tk):
     def _build_schedule_page(self):
         page = tk.Frame(self.content, bg=BG)
         self.pages["schedule"] = page
-        self.page_header(page, "排程", "用 Windows 工作排程每天自動跑一輪。")
+        self.page_header(
+            page, "排程",
+            "預設排程只跑「沒有自己排程」的帳號；各帳號排程在「帳號」分頁設定後按「套用排程」生效。",
+        )
         card = self.card(page)
         self.sched_enabled = tk.BooleanVar(value=True)
-        tk.Checkbutton(card, text="啟用每天自動執行", variable=self.sched_enabled,
+        tk.Checkbutton(card, text="啟用預設排程", variable=self.sched_enabled,
                        bg=CARD, fg=TEXT, font=FONT, activebackground=CARD).pack(anchor="w")
         row = tk.Frame(card, bg=CARD)
         row.pack(fill="x", pady=(12, 4))
-        tk.Label(row, text="每日時間（香港時間）", bg=CARD, fg=MUTED, font=FONT_SMALL).pack(side="left")
+        tk.Label(row, text="預設每日時間", bg=CARD, fg=MUTED, font=FONT_SMALL).pack(side="left")
         self.sched_hour = tk.StringVar(value="14")
         self.sched_min = tk.StringVar(value="00")
         tk.Spinbox(row, from_=0, to=23, textvariable=self.sched_hour, width=4, font=FONT).pack(side="left", padx=(12, 4))
@@ -1294,6 +1299,14 @@ class NewsApp(tk.Tk):
                     f"上次執行：{st.get('LAST', '-')}\n"
                     f"下次執行：{st.get('NEXT', '-')}\n"
                     f"上次結果碼：{st.get('RESULT', '-')}")
+            acctasks = st.get("ACCTASKS", "")
+            if acctasks:
+                text += "\n\n各帳號排程："
+                for row in acctasks.split(";"):
+                    if not row:
+                        continue
+                    name, state, nxt = row.split("|", 2)
+                    text += f"\n  {name.replace('佛山新聞 AI - ', '')}｜{state}｜下次 {nxt}"
         except Exception as e:  # noqa: BLE001
             text = f"無法讀取排程：{e}"
         self.sched_status.config(text=text)

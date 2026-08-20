@@ -50,6 +50,8 @@ def main():
     parser = argparse.ArgumentParser(description="佛山產業新聞 AI（n8n Schedule Trigger 線）")
     parser.add_argument("--run", action="store_true", help="執行新一輪")
     parser.add_argument("--account", default=None, help="只跑指定帳號（預設全部）")
+    parser.add_argument("--skip-scheduled", action="store_true",
+                        help="跳過有自己排程時間的帳號（預設排程用）")
     parser.add_argument("--dry-run", action="store_true", help="不寄信（測試用）")
     parser.add_argument("--from-json", help="用離線 Serper 資料（fixture）取代搜尋")
     parser.add_argument("--no-notify", action="store_true", help="不寄通知信")
@@ -144,6 +146,8 @@ def main():
 
     if args.run:
         accounts = cfg.enabled_accounts()
+        if args.skip_scheduled:
+            accounts = [a for a in accounts if not (a.schedule_time or "").strip()]
         if args.account:
             accounts = [a for a in cfg.accounts if a.name == args.account]
             if not accounts and args.account == "default":

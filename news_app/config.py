@@ -42,6 +42,7 @@ class NewsAccount:
     email_to: list[str] = field(default_factory=list)
     temperature: float | None = None
     schedule_time: str = ""
+    schedule_days: list[str] = field(default_factory=list)
     prompt_directions: str = ""
     prompt_analysis: str = ""
     prompt_scripts: str = ""
@@ -66,6 +67,7 @@ class NewsAccount:
             email_to=self.email_to or cfg.email_to,
             temperature=self.temperature if self.temperature is not None else cfg.ai_temperature,
             schedule_time=self.schedule_time,
+            schedule_days=self.schedule_days,
             prompt_directions=self.prompt_directions,
             prompt_analysis=self.prompt_analysis,
             prompt_scripts=self.prompt_scripts,
@@ -240,6 +242,7 @@ class NewsConfig:
             email_to=_as_list(item.get("email_to")),
             temperature=float(item["temperature"]) if item.get("temperature") is not None else None,
             schedule_time=str(item.get("schedule_time") or ""),
+            schedule_days=_as_list(item.get("schedule_days")),
             prompt_directions=str(item.get("prompt_directions") or ""),
             prompt_analysis=str(item.get("prompt_analysis") or ""),
             prompt_scripts=str(item.get("prompt_scripts") or ""),

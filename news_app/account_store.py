@@ -13,6 +13,7 @@ ACCOUNTS_DIR = PROJECT_ROOT / "config" / "news_accounts"
 FIELDS = [
     "name", "enabled", "place", "xhs_account", "query", "num", "gl", "hl", "tbs",
     "audience", "topics", "tone", "hashtags", "email_to",
+    "schedule_time", "schedule_days",
     "prompt_directions", "prompt_analysis", "prompt_scripts", "prompt_tagline",
 ]
 
