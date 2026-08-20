@@ -24,15 +24,34 @@ DAY_MAP = {
     "sun": "Sunday", "sunday": "Sunday",
 }
 
+CN_DAY = {"一": "mon", "二": "tue", "三": "wed", "四": "thu",
+          "五": "fri", "六": "sat", "日": "sun", "天": "sun"}
+CODE_CN = {"mon": "一", "tue": "二", "wed": "三", "thu": "四",
+           "fri": "五", "sat": "六", "sun": "日"}
+
+
+def normalize_days(days) -> str:
+    """把「一,三 / 周一,周三 / mon,wed」統一成 mon,wed；空則回 ""。"""
+    out: list[str] = []
+    text = str(days or "").replace("；", ",").replace("、", ",").replace(";", ",")
+    for d in text.split(","):
+        d = d.strip().lower()
+        d = d.replace("星期", "").replace("週", "").replace("周", "")
+        if d in CN_DAY:
+            d = CN_DAY[d]
+        if d in DAY_MAP and d not in out:
+            out.append(d)
+    return ",".join(out)
+
+
+def display_days(days) -> str:
+    """把 mon,wed 顯示成「一、三」，方便非技術使用者閱讀。"""
+    return "、".join(CODE_CN.get(d, d) for d in normalize_days(days).split(",") if d)
+
 
 def parse_days(days) -> list[str]:
     """把 mon,wed 轉成 Windows 用的 Monday,Wednesday；空則回 []（表示每天）。"""
-    out: list[str] = []
-    for d in str(days or "").replace(";", ",").split(","):
-        d = d.strip().lower()
-        if d in DAY_MAP and DAY_MAP[d] not in out:
-            out.append(DAY_MAP[d])
-    return out
+    return [DAY_MAP[d] for d in normalize_days(days).split(",") if d]
 
 
 def has_own_schedule(acc: dict) -> bool:

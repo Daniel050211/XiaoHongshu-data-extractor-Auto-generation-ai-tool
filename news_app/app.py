@@ -847,8 +847,6 @@ class NewsApp(tk.Tk):
             ("audience", "目標讀者"), ("topics", "關注主題"),
             ("tone", "語氣風格"), ("hashtags", "常用標籤"),
             ("email_to", "收件人（逗號分隔）"),
-            ("schedule_time", "排程時間（HH:MM，留空=無）"),
-            ("schedule_days", "排程星期（mon,wed…留空=每天）"),
         ]
         for key, label in row_specs:
             r = tk.Frame(form, bg=CARD)
@@ -891,6 +889,7 @@ class NewsApp(tk.Tk):
                 a.get("place") or "",
             ))
         self._clear_account_form()
+        self.refresh_account_schedules()
 
     def _clear_account_form(self):
         for key, var in self.acc_vars.items():
@@ -1059,7 +1058,7 @@ class NewsApp(tk.Tk):
         self.pages["schedule"] = page
         self.page_header(
             page, "排程",
-            "預設排程只跑「沒有自己排程」的帳號；各帳號排程在「帳號」分頁設定後按「套用排程」生效。",
+            "預設排程只跑「沒有自己排程」的帳號；有設定的帳號只照自己的時間跑。",
         )
         card = self.card(page)
         self.sched_enabled = tk.BooleanVar(value=True)
@@ -1079,6 +1078,57 @@ class NewsApp(tk.Tk):
         btns.pack(anchor="w")
         make_button(btns, "套用排程", self.apply_schedule, kind="primary").pack(side="left", padx=(0, 8))
         make_button(btns, "立即觸發一次", self.trigger_now, kind="secondary").pack(side="left")
+
+        acc_card = self.card(page)
+        tk.Label(acc_card, text="各帳號排程（選填）", bg=CARD, fg=TEXT,
+                 font=("Segoe UI", 12, "bold")).pack(anchor="w")
+        tk.Label(acc_card, text="有設定的帳號只照自己的時間/星期跑；留空的帳號用上面的預設排程。"
+                                "時間格式例如 11:00，星期用中文例如 一、三（留空=每天）。",
+                 bg=CARD, fg=MUTED, font=FONT_SMALL, justify="left", wraplength=680).pack(anchor="w", pady=(4, 8))
+        self.acc_sched_frame = tk.Frame(acc_card, bg=CARD)
+        self.acc_sched_frame.pack(fill="x")
+        self.refresh_account_schedules()
+
+    def refresh_account_schedules(self):
+        for w in self.acc_sched_frame.winfo_children():
+            w.destroy()
+        self.acc_sched_vars = {}
+        for a in account_store.list_accounts():
+            name = str(a.get("name") or "")
+            row = tk.Frame(self.acc_sched_frame, bg=CARD)
+            row.pack(fill="x", pady=3)
+            tk.Label(row, text=name, width=14, anchor="w", bg=CARD, fg=TEXT,
+                     font=FONT_SMALL).pack(side="left")
+            tvar = tk.StringVar(value=str(a.get("schedule_time") or ""))
+            dvar = tk.StringVar(value=scheduler.display_days(a.get("schedule_days")))
+            tk.Entry(row, textvariable=tvar, width=6, font=FONT, relief="flat", bg="#f8fafc",
+                     highlightthickness=1, highlightbackground=BORDER).pack(side="left", padx=(8, 2))
+            tk.Label(row, text="時間", bg=CARD, fg=MUTED, font=FONT_SMALL).pack(side="left")
+            tk.Entry(row, textvariable=dvar, width=12, font=FONT, relief="flat", bg="#f8fafc",
+                     highlightthickness=1, highlightbackground=BORDER).pack(side="left", padx=8)
+            tk.Label(row, text="星期", bg=CARD, fg=MUTED, font=FONT_SMALL).pack(side="left")
+            make_button(
+                row, "儲存",
+                lambda n=name, tv=tvar, dv=dvar: self.save_account_schedule(n, tv, dv),
+                kind="secondary", pady=3, padx=10,
+            ).pack(side="left", padx=8)
+            self.acc_sched_vars[name] = (tvar, dvar)
+
+    def save_account_schedule(self, name: str, tvar, dvar):
+        time_str = tvar.get().strip()
+        days_code = scheduler.normalize_days(dvar.get())
+        data = {}
+        for a in account_store.list_accounts():
+            if a.get("name") == name:
+                data = dict(a)
+                break
+        data["name"] = name
+        data["schedule_time"] = time_str
+        data["schedule_days"] = days_code
+        account_store.save_account(data)
+        self.cfg = NewsConfig.load()
+        self.refresh_account_schedules()
+        self.sched_status.config(text=f"已儲存「{name}」的排程，記得按「套用排程」生效。")
 
     def _build_settings_page(self):
         page = tk.Frame(self.content, bg=BG)

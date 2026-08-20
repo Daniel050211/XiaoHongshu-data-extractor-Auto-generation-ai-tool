@@ -526,6 +526,15 @@ class SchedulerHelperTest(unittest.TestCase):
         self.assertEqual(scheduler.parse_days("mon,wed"), ["Monday", "Wednesday"])
         self.assertEqual(scheduler.parse_days("Monday;Friday"), ["Monday", "Friday"])
         self.assertEqual(scheduler.parse_days(""), [])
+        self.assertEqual(scheduler.parse_days("一、三"), ["Monday", "Wednesday"])
+        self.assertEqual(scheduler.parse_days("周一,周五"), ["Monday", "Friday"])
+
+    def test_normalize_and_display_days(self):
+        from news_app import scheduler
+        self.assertEqual(scheduler.normalize_days("一,三"), "mon,wed")
+        self.assertEqual(scheduler.normalize_days("週一；週三"), "mon,wed")
+        self.assertEqual(scheduler.display_days("mon,wed"), "一、三")
+        self.assertEqual(scheduler.normalize_days(""), "")
 
     def test_default_accounts_skip_scheduled(self):
         from news_app import scheduler
