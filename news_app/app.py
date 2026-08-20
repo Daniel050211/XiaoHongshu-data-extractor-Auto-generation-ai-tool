@@ -1083,7 +1083,7 @@ class NewsApp(tk.Tk):
         tk.Label(acc_card, text="各帳號排程（選填）", bg=CARD, fg=TEXT,
                  font=("Segoe UI", 12, "bold")).pack(anchor="w")
         tk.Label(acc_card, text="有設定的帳號只照自己的時間/星期跑；留空的帳號用上面的預設排程。"
-                                "時間格式例如 11:00，星期用中文例如 一、三（留空=每天）。",
+                                "時間從下拉選單選，星期用勾選的（都不勾=每天）。",
                  bg=CARD, fg=MUTED, font=FONT_SMALL, justify="left", wraplength=680).pack(anchor="w", pady=(4, 8))
         self.acc_sched_frame = tk.Frame(acc_card, bg=CARD)
         self.acc_sched_frame.pack(fill="x")
@@ -1093,6 +1093,11 @@ class NewsApp(tk.Tk):
         for w in self.acc_sched_frame.winfo_children():
             w.destroy()
         self.acc_sched_vars = {}
+        time_presets = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00",
+                        "15:00", "16:00", "17:00", "18:00", "19:00", "20:00",
+                        "21:00", "22:00", "23:00"]
+        day_buttons = [("一", "mon"), ("二", "tue"), ("三", "wed"), ("四", "thu"),
+                       ("五", "fri"), ("六", "sat"), ("日", "sun")]
         for a in account_store.list_accounts():
             name = str(a.get("name") or "")
             row = tk.Frame(self.acc_sched_frame, bg=CARD)
@@ -1100,31 +1105,44 @@ class NewsApp(tk.Tk):
             tk.Label(row, text=name, width=14, anchor="w", bg=CARD, fg=TEXT,
                      font=FONT_SMALL).pack(side="left")
             tvar = tk.StringVar(value=str(a.get("schedule_time") or ""))
-            dvar = tk.StringVar(value=scheduler.display_days(a.get("schedule_days")))
-            tk.Entry(row, textvariable=tvar, width=6, font=FONT, relief="flat", bg="#f8fafc",
-                     highlightthickness=1, highlightbackground=BORDER).pack(side="left", padx=(8, 2))
+            ttk.Combobox(row, textvariable=tvar, values=time_presets, width=6,
+                         state="normal", style="App.TCombobox").pack(side="left", padx=(8, 2))
             tk.Label(row, text="時間", bg=CARD, fg=MUTED, font=FONT_SMALL).pack(side="left")
-            tk.Entry(row, textvariable=dvar, width=12, font=FONT, relief="flat", bg="#f8fafc",
-                     highlightthickness=1, highlightbackground=BORDER).pack(side="left", padx=8)
-            tk.Label(row, text="星期", bg=CARD, fg=MUTED, font=FONT_SMALL).pack(side="left")
+            tk.Label(row, text="星期", bg=CARD, fg=MUTED, font=FONT_SMALL).pack(side="left", padx=(8, 0))
+            day_vars: dict[str, tk.BooleanVar] = {}
+            codes = set(scheduler.normalize_days(a.get("schedule_days")).split(","))
+            for cn, code in day_buttons:
+                var = tk.BooleanVar(value=code in codes)
+                tk.Checkbutton(row, text=cn, variable=var, bg=CARD, activebackground=CARD,
+                               font=FONT_SMALL).pack(side="left", padx=1)
+                day_vars[code] = var
             make_button(
                 row, "儲存",
-                lambda n=name, tv=tvar, dv=dvar: self.save_account_schedule(n, tv, dv),
+                lambda n=name, tv=tvar, dv=day_vars: self.save_account_schedule(n, tv, dv),
                 kind="secondary", pady=3, padx=10,
             ).pack(side="left", padx=8)
-            self.acc_sched_vars[name] = (tvar, dvar)
+            self.acc_sched_vars[name] = (tvar, day_vars)
 
     def save_account_schedule(self, name: str, tvar, dvar):
         time_str = tvar.get().strip()
-        days_code = scheduler.normalize_days(dvar.get())
+        if time_str and ":" not in time_str:
+            messagebox.showerror("時間格式錯誤", f"「{name}」的時間格式不對，請從下拉選單選擇，例如 11:00。")
+            return
+        days_code = ",".join(code for code, var in dvar.items() if var.get())
         data = {}
         for a in account_store.list_accounts():
             if a.get("name") == name:
                 data = dict(a)
                 break
         data["name"] = name
-        data["schedule_time"] = time_str
-        data["schedule_days"] = days_code
+        if time_str:
+            data["schedule_time"] = time_str
+        else:
+            data.pop("schedule_time", None)
+        if days_code:
+            data["schedule_days"] = days_code
+        else:
+            data.pop("schedule_days", None)
         account_store.save_account(data)
         self.cfg = NewsConfig.load()
         self.refresh_account_schedules()
