@@ -279,7 +279,7 @@ class WebFormTest(unittest.TestCase):
         base = NewsConfig.load()
         # 明確清空公開網址/安全碼，避免 .env 的 FORM_PUBLIC_URL 把測試導到公開隧道
         cls.cfg = replace(base, db_path=tmp / "news.db", web_port=18999,
-                          form_public_url="", form_token="")
+                          form_public_url="", form_token="", data_dir=tmp)
         cls.conn = store.connect(cls.cfg.db_path)
         cls.run_id = pipeline.start_run(
             cls.cfg, cls.conn, run_date="2026-08-17",
@@ -340,6 +340,7 @@ class WebFormTokenTest(unittest.TestCase):
             base,
             db_path=tmp / "news.db",
             web_port=18998,
+            data_dir=tmp,
             form_public_url="https://example.ngrok.app",
             form_token="secret123",
         )
@@ -417,7 +418,7 @@ class AccountLinkingTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="news_link_"))
         base = NewsConfig.load()
-        self.cfg = replace(base, db_path=self.tmp / "news.db",
+        self.cfg = replace(base, db_path=self.tmp / "news.db", data_dir=self.tmp,
                            accounts=[NewsAccount(name="新聞號", xhs_account="XHS源頭")])
         self.conn = store.connect(self.cfg.db_path)
 
@@ -545,6 +546,54 @@ class SchedulerHelperTest(unittest.TestCase):
         ]
         self.assertEqual([a["name"] for a in scheduler.scheduled_accounts(accounts)], ["A"])
         self.assertEqual([a["name"] for a in scheduler.default_accounts(accounts)], ["B"])
+
+
+class ExcelExportTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="news_excel_"))
+        base = NewsConfig.load()
+        self.cfg = replace(base, db_path=self.tmp / "news.db", data_dir=self.tmp,
+                           excel_export=True)
+
+    def test_articles_and_final_export(self):
+        from openpyxl import load_workbook
+        from news_app import excel_export
+
+        articles = [
+            {"id": "a1", "topic": "AI", "title": "標題一", "url": "https://x.com/1",
+             "snippet": "摘要一", "source": "來源A", "date": "2026-08-20"},
+            {"id": "a2", "topic": "機器人", "title": "標題二", "url": "https://x.com/2",
+             "snippet": "摘要二", "source": "來源B", "date": "2026-08-21"},
+        ]
+        excel_export.save_articles(self.cfg, articles, run_id=7, run_date="2026-08-21",
+                                   account="佛山科创观察")
+        excel_export.save_final(
+            self.cfg, run_id=7, run_date="2026-08-21", account="佛山科创观察",
+            chosen_direction='{"title": "方向一", "description": "說明"}',
+            style="判斷型", script="定稿內容", tagline="一句話", image_prompt="圖片提示",
+        )
+
+        path = excel_export.export_path(self.cfg)
+        self.assertTrue(path.exists())
+        wb = load_workbook(path)
+        self.assertIn("新聞", wb.sheetnames)
+        self.assertIn("定稿", wb.sheetnames)
+        art_rows = list(wb["新聞"].iter_rows(values_only=True))
+        self.assertEqual(len(art_rows), 3)  # header + 2 articles
+        self.assertEqual(art_rows[1][4], "AI")       # 主題分類
+        self.assertEqual(art_rows[2][5], "標題二")    # 標題
+        fin_rows = list(wb["定稿"].iter_rows(values_only=True))
+        self.assertEqual(len(fin_rows), 2)           # header + 1 final
+        self.assertEqual(fin_rows[1][3], "方向一")
+        self.assertEqual(fin_rows[1][5], "判斷型")
+        self.assertEqual(fin_rows[1][6], "定稿內容")
+        self.assertEqual(fin_rows[1][8], "圖片提示")
+
+    def test_disabled_export_writes_nothing(self):
+        from news_app import excel_export
+        self.cfg = replace(self.cfg, excel_export=False)
+        excel_export.save_articles(self.cfg, [], run_id=1, run_date="2026-08-21", account="A")
+        self.assertFalse(excel_export.export_path(self.cfg).exists())
 
 
 if __name__ == "__main__":

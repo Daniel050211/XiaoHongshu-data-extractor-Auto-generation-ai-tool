@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from . import ai, email as mailer, serper, sheets_sync, store, web
+from . import ai, email as mailer, excel_export, serper, sheets_sync, store, web
 from .config import NewsAccount
 from .prompts import (
     build_enhanced_prompt,
@@ -208,6 +208,10 @@ def start_run(cfg, conn, run_date: str | None = None, from_json=None,
             raise RuntimeError("搜尋沒有回傳任何結果")
         articles = serper.merge_and_label(items)
         store.save_articles(conn, run_id, articles)
+        try:
+            excel_export.save_articles(cfg, articles, run_id, run_date, account=acc.name)
+        except Exception as e:  # noqa: BLE001
+            store.add_event(conn, run_id, f"Excel 新聞匯出失敗（可忽略）：{e}", level="warn")
         articles_text = serper.prepare_articles_text(articles)
         store.update_run(conn, run_id, articles_count=len(articles), articles_text=articles_text)
         store.add_event(conn, run_id, f"搜尋到 {len(articles)} 條新聞")
@@ -337,6 +341,20 @@ def decide_script(cfg, conn, run_id: int, decision: str, comment: str = "",
             store.save_memory(conn, run_id, run.get("account") or "default", memory_text)
         except Exception as e:  # noqa: BLE001
             store.add_event(conn, run_id, f"記憶寫入失敗：{e}", level="warn")
+
+        try:
+            excel_export.save_final(
+                cfg, run_id,
+                run_date=run.get("run_date") or "",
+                account=run.get("account") or "default",
+                chosen_direction=run.get("chosen_direction") or "",
+                style=chosen.get("style", ""),
+                script=chosen.get("content", ""),
+                tagline=tagline,
+                image_prompt=image_prompt,
+            )
+        except Exception as e:  # noqa: BLE001
+            store.add_event(conn, run_id, f"Excel 定稿匯出失敗（可忽略）：{e}", level="warn")
 
         if notify and not dry_run:
             _send_and_log(cfg, conn, run_id, "Image Prompt",

@@ -107,6 +107,8 @@ class NewsConfig:
     # 本機審批表單伺服器
     web_enabled: bool = True
     web_port: int = 18765
+    # 搜到的新聞與最終定稿是否自動存成 Excel（data/exports/）
+    excel_export: bool = True
     # 公開網址（例如 ngrok/Cloudflare 隧道），讓手機也能開表單；留空 = 只用本機網址
     form_public_url: str = ""
     # 表單安全碼：有設定時，網址必須帶 ?token=... 才能開/送出
@@ -181,6 +183,7 @@ class NewsConfig:
             script_max_retries=int(g("retries", "script_max", default=2)),
             web_enabled=bool(g("web", "enabled", default=True)),
             web_port=int(g("web", "port", default=18765)),
+            excel_export=bool(g("export", "excel", default=True)),
             form_public_url=os.getenv("FORM_PUBLIC_URL", "").strip(),
             form_token=os.getenv("FORM_TOKEN", "").strip(),
             mail_watch_enabled=bool(g("mail", "watch", default=False)),

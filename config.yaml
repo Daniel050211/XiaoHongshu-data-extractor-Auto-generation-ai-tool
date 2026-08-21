@@ -92,6 +92,8 @@ news:
   web:
     enabled: true             # 本機審批表單伺服器（寄信時附表單連結）
     port: 18765
+  export:
+    excel: true               # 把搜到的新聞與最終定稿存成 Excel（data/exports/）
   mail:
     watch: true               # 自動監看 Email 回覆（App 啟動時；或 run_news.py --watch-mail）
     watch_interval_sec: 45
