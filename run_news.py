@@ -1,4 +1,4 @@
-"""佛山產業新聞 AI 系統主程式（n8n Schedule Trigger 線）。
+"""小紅書新聞AI 系統主程式（n8n Schedule Trigger 線）。
 
 用法：
   python run_news.py --run                       # 執行新一輪，停在方向審批並寄信通知
@@ -47,7 +47,7 @@ def _print_run(r: dict) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="佛山產業新聞 AI（n8n Schedule Trigger 線）")
+    parser = argparse.ArgumentParser(description="小紅書新聞AI（n8n Schedule Trigger 線）")
     parser.add_argument("--run", action="store_true", help="執行新一輪")
     parser.add_argument("--account", default=None, help="只跑指定帳號（預設全部）")
     parser.add_argument("--skip-scheduled", action="store_true",

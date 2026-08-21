@@ -218,7 +218,7 @@ class _Handler(BaseHTTPRequestHandler):
             else:
                 self._send(200, _status_page(self._cfg(), run))
             return
-        self._send(200, _page("佛山產業新聞 AI", "<h1>佛山產業新聞 AI</h1><p>審批表單伺服器運作中。</p>"))
+        self._send(200, _page("小紅書新聞AI", "<h1>小紅書新聞AI</h1><p>審批表單伺服器運作中。</p>"))
 
     def do_POST(self):  # noqa: N802
         parsed = urlparse(self.path)

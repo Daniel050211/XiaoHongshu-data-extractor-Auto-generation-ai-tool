@@ -1,4 +1,4 @@
-"""佛山產業新聞 AI - 桌面審批 App（Tkinter）。
+"""小紅書新聞AI - 桌面審批 App（Tkinter）。
 
 執行：python news_app/app.py  或  python run_news.py --app
 """
@@ -163,7 +163,7 @@ def status_pill(parent, text, tone="muted"):
 class NewsApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("佛山產業新聞 AI")
+        self.title("小紅書新聞AI")
         dpi = self.winfo_fpixels("1i") / 96.0
         self.geometry(f"{int(1180 * dpi)}x{int(740 * dpi)}")
         self.minsize(960, 600)
@@ -1374,7 +1374,7 @@ class NewsApp(tk.Tk):
                     if not row:
                         continue
                     name, state, nxt = row.split("|", 2)
-                    text += f"\n  {name.replace('佛山新聞 AI - ', '')}｜{state}｜下次 {nxt}"
+                    text += f"\n  {name.replace('小紅書新聞AI - ', '')}｜{state}｜下次 {nxt}"
         except Exception as e:  # noqa: BLE001
             text = f"無法讀取排程：{e}"
         self.sched_status.config(text=text)

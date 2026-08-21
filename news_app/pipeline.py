@@ -43,7 +43,7 @@ def format_direction_email(news_summary: str, directions: list[dict]) -> str:
                          f'{s.get("title", "")}</a></li>\n')
             body += "</ul>\n"
         body += "<hr>\n"
-    body += ("<p><strong>請到「佛山產業新聞 AI」桌面程式（或 CLI）中選擇要生成的分析方向：</strong></p>\n"
+    body += ("<p><strong>請到「小紅書新聞AI」桌面程式（或 CLI）中選擇要生成的分析方向：</strong></p>\n"
              "<p>方向1 / 方向2 / 方向3 / ❌ 拒绝全部</p>")
     return body
 
@@ -66,7 +66,7 @@ def format_script_email(versions: list[dict]) -> str:
     if not versions:
         html += '<p style="color:#d32f2f; font-weight:bold;">⚠️ 未偵測到有效版本，請檢查上游 Generation Agent 的輸出格式。</p>'
     html += (
-        "<p><strong>請到「佛山產業新聞 AI」桌面程式（或 CLI）中選擇要發布的版本：</strong></p>\n"
+        "<p><strong>請到「小紅書新聞AI」桌面程式（或 CLI）中選擇要發布的版本：</strong></p>\n"
         "<p>✅ 批准：反差型 / ✅ 批准：數據型 / ✅ 批准：判斷型 / ❌ 拒絕全部</p>"
     )
     return html

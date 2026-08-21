@@ -69,7 +69,7 @@ apify:
 
 ---
 
-# 佛山產業新聞 AI（n8n「Schedule Trigger」線）
+# 小紅書新聞AI（n8n「Schedule Trigger」線）
 
 把 n8n 佛山工作流中 **14:00 Schedule Trigger 新聞線**（Serper 搜尋 → AI 方向選擇 → 審批 → 深度分析 → 小紅書腳本 → 審批 → Tagline/圖片 Prompt → 寄信）抽出來做成本機系統。小紅書爬蟲分析線（9:00）仍是上面的 `run_weekly.py`。
 
@@ -106,7 +106,7 @@ apify:
 ```powershell
 python -c "from news_app import scheduler; print(scheduler.apply_schedule(scheduler.load_config()))"
 ```
-預設每天 14:00（香港時間）執行，任務名稱為「佛山新聞 AI」。
+預設每天 14:00（香港時間）執行，任務名稱為「小紅書新聞AI」。
 
 ## 多帳號新聞線（每個帳號不同主題）
 

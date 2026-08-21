@@ -69,7 +69,7 @@ email:
   cc: []
   subject_prefix: "[小紅書週報]"
 
-# ===================== Foshan News AI (n8n "Schedule Trigger" line) =====================
+# ===================== 小紅書新聞AI (n8n "Schedule Trigger" line) =====================
 news:
   schedule:
     run_time: "14:00"          # daily run time (HKT)
@@ -98,7 +98,7 @@ news:
     watch: true               # 自動監看 Email 回覆（App 啟動時；或 run_news.py --watch-mail）
     watch_interval_sec: 45
   email:
-    subject_prefix: "[Foshan News AI]"
+    subject_prefix: "[小紅書新聞AI]"
     # to: falls back to EMAIL_TO in .env
   google:
     enabled: false             # enable to sync to Google Sheets (needs service account)

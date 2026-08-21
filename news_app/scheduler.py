@@ -6,7 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-TASK_NAME = "佛山新聞 AI"
+TASK_NAME = "小紅書新聞AI"
+OLD_TASK_NAME = "佛山新聞 AI"  # 舊名稱：套用排程時一併清除，避免重複執行
 # exe 模式：專案根目錄 = exe 所在資料夾，排程設定才會持久化
 if getattr(sys, "frozen", False):
     PROJECT_ROOT = Path(sys.executable).resolve().parent
@@ -139,6 +140,13 @@ def apply_schedule(cfg: dict) -> str:
 
     parts: list[str] = []
     summary: list[str] = []
+
+    # 0) 清掉舊名稱的任務（改名前的「佛山新聞 AI」）
+    parts.append(
+        f"Unregister-ScheduledTask -TaskName '{OLD_TASK_NAME}' -Confirm:$false -ErrorAction SilentlyContinue\n"
+        f"Get-ScheduledTask | Where-Object {{ $_.TaskName -like '{OLD_TASK_NAME} - *' }} "
+        "| ForEach-Object { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false }"
+    )
 
     # 1) 預設排程（只跑「沒有自己排程」的啟用帳號）
     if not cfg.get("enabled"):
