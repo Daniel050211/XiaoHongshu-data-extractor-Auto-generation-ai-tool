@@ -34,6 +34,28 @@ def export_path(cfg) -> Path:
     return Path(cfg.data_dir) / "exports" / "news_ai_records.xlsx"
 
 
+def existing_run_ids(cfg, sheet_name: str) -> set[int]:
+    """讀取某個工作表已匯出的 Run#，避免重複寫入。"""
+    path = export_path(cfg)
+    if not path.exists():
+        return set()
+    try:
+        wb = load_workbook(path)
+    except Exception:  # noqa: BLE001
+        return set()
+    if sheet_name not in wb.sheetnames:
+        return set()
+    out: set[int] = set()
+    for row in wb[sheet_name].iter_rows(min_row=2, values_only=True):
+        v = row[2] if len(row) > 2 else None  # Run# 欄
+        if v is not None:
+            try:
+                out.add(int(v))
+            except (TypeError, ValueError):
+                pass
+    return out
+
+
 def save_articles(cfg, articles: list[dict], run_id: int, run_date: str, account: str) -> None:
     """把一輪搜到的新聞附加到 Excel「新聞」工作表。"""
     if not getattr(cfg, "excel_export", True):

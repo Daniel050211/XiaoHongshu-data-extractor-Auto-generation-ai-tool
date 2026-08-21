@@ -68,6 +68,8 @@ def main():
     parser.add_argument("--resend-final", type=int, metavar="RUN", help="補寄最終 Image Prompt 信")
     parser.add_argument("--resend-direction", type=int, metavar="RUN", help="補寄方向選擇信")
     parser.add_argument("--resend-script", type=int, metavar="RUN", help="補寄腳本審核信")
+    parser.add_argument("--export-history", nargs="?", const="all", metavar="RANGE",
+                        help="把歷史 run 補進 Excel（例：18-21；省略=全部；已匯出的會自動跳過）")
     parser.add_argument("--serve", action="store_true", help="啟動本機審批表單伺服器（常駐）")
     parser.add_argument("--watch-mail", action="store_true", help="常駐監看 Email 回覆")
     parser.add_argument("--check-mail", action="store_true", help="檢查一次 Email 回覆")
@@ -222,6 +224,44 @@ def main():
     if args.resend_script:
         ok = pipeline.resend_script_email(cfg, conn, args.resend_script)
         print(f"補寄結果：{'成功' if ok else '失敗（請檢查郵件設定或 Outlook）'}")
+        return
+
+    if args.export_history is not None:
+        from news_app import excel_export
+        ids = [r["id"] for r in store.list_runs(conn, limit=100000)]
+        if args.export_history != "all":
+            try:
+                a, _, b = args.export_history.partition("-")
+                start, end = int(a), int(b or a)
+                ids = [i for i in ids if start <= i <= end]
+            except ValueError:
+                print(f"範圍格式錯誤：{args.export_history}（例如 18-21）")
+                sys.exit(2)
+        art_done = excel_export.existing_run_ids(cfg, excel_export.ARTICLES_SHEET)
+        fin_done = excel_export.existing_run_ids(cfg, excel_export.FINAL_SHEET)
+        n_art = n_fin = 0
+        for run_id in ids:
+            run = store.get_run(conn, run_id)
+            if not run:
+                continue
+            account = run.get("account") or "default"
+            run_date = run.get("run_date") or ""
+            articles = pipeline.store_articles(conn, run_id)
+            if articles and run_id not in art_done:
+                excel_export.save_articles(cfg, articles, run_id, run_date, account=account)
+                n_art += 1
+            if (run.get("status") == pipeline.STATUS_DONE and run.get("tagline")
+                    and run_id not in fin_done):
+                excel_export.save_final(
+                    cfg, run_id, run_date=run_date, account=account,
+                    chosen_direction=run.get("chosen_direction") or "",
+                    style=run.get("style") or "",
+                    script=run.get("script_to_publish") or "",
+                    tagline=run.get("tagline") or "",
+                    image_prompt=run.get("image_prompt") or "",
+                )
+                n_fin += 1
+        print(f"補匯出完成：新聞 {n_art} 個 run，定稿 {n_fin} 個 run → {excel_export.export_path(cfg)}")
         return
 
     if args.show:
