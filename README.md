@@ -151,15 +151,15 @@ python run_news.py --run --account 佛山旅遊號    # 只跑旅遊號
 
 ## 給老闆/同事用的免安裝版（exe）
 
-專案根目錄的 **`FoshanNewsAI.exe`** 是打包好的桌面 App（不需安裝 Python）：
+專案根目錄的 **`XHSNewsAI.exe`** 是打包好的桌面 App（不需安裝 Python）：
 
-- 雙擊 `FoshanNewsAI.exe`（或 `Launch News App.cmd`）直接開啟
+- 雙擊 `XHSNewsAI.exe`（或 `Launch News App.cmd`）直接開啟
 - 打包後 exe 仍把「exe 所在資料夾」當成專案根目錄，所以 **exe 必須放在專案根目錄**，
   與 `config.yaml`、`.env`、`config/news_accounts/`、`data/` 同一層
 - 程式碼改動後重新打包：
   ```powershell
-  python -m PyInstaller --noconfirm --clean FoshanNewsAI.spec
-  copy /Y dist\FoshanNewsAI.exe FoshanNewsAI.exe
+  python -m PyInstaller --noconfirm --clean XHSNewsAI.spec
+  copy /Y dist\XHSNewsAI.exe XHSNewsAI.exe
   ```
 - 換到別台電腦：把整個專案資料夾（含 exe、config.yaml、.env.example、config/news_accounts/、data/）壓縮帶過去；
   對方填自己的 `.env`（Serper / AI key、EMAIL_TO、寄信方式）即可

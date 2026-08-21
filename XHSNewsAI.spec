@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 # 新聞 AI 桌面 App（佛山新聞線）PyInstaller spec
-# 建置：python -m PyInstaller --noconfirm --clean FoshanNewsAI.spec
+# 建置：python -m PyInstaller --noconfirm --clean XHSNewsAI.spec
 
 
 a = Analysis(
@@ -32,7 +32,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='FoshanNewsAI',
+    name='XHSNewsAI',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

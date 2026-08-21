@@ -1,8 +1,8 @@
 @echo off
 cd /d "%~dp0"
 
-if exist "%~dp0FoshanNewsAI.exe" (
-  start "" "%~dp0FoshanNewsAI.exe"
+if exist "%~dp0XHSNewsAI.exe" (
+  start "" "%~dp0XHSNewsAI.exe"
   exit /b 0
 )
 
