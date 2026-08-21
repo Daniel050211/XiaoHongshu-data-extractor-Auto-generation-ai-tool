@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import os
 import queue
 import sys
 import threading
@@ -75,6 +76,11 @@ ENV_FIELDS = [
     ("NEWS_SEARCH_QUERY", "搜尋關鍵字"),
     ("EMAIL_FROM", "寄件人 email"),
     ("EMAIL_TO", "收件人 email（逗號分隔）"),
+]
+
+FORM_ENV_FIELDS = [
+    ("FORM_PUBLIC_URL", "公開網址（ngrok）"),
+    ("FORM_TOKEN", "Authtoken（登入金鑰，必填）"),
 ]
 
 STATUS_LABELS = {
@@ -1148,24 +1154,46 @@ class NewsApp(tk.Tk):
         self.refresh_account_schedules()
         self.sched_status.config(text=f"已儲存「{name}」的排程，記得按「套用排程」生效。")
 
-    def _build_settings_page(self):
-        page = tk.Frame(self.content, bg=BG)
-        self.pages["settings"] = page
-        self.page_header(page, "設定", "機密放在 .env。此頁只改常用欄位。")
-        card = self.card(page)
-        env = self._read_env()
-        self.env_vars = {}
-        for key, label in ENV_FIELDS:
+    def _add_env_fields(self, card, fields, env: dict):
+        for key, label in fields:
             row = tk.Frame(card, bg=CARD)
             row.pack(fill="x", pady=6)
             tk.Label(row, text=label, width=32, anchor="w", bg=CARD, fg=MUTED, font=FONT_SMALL).pack(side="left")
             var = tk.StringVar(value=env.get(key, ""))
-            show = "*" if "KEY" in key else ""
+            show = "*" if ("KEY" in key or "TOKEN" in key) else ""
             tk.Entry(row, textvariable=var, font=FONT, relief="flat", bg="#f8fafc",
                      highlightthickness=1, highlightbackground=BORDER, show=show).pack(
                 side="left", fill="x", expand=True, ipady=6)
             self.env_vars[key] = var
-        make_button(card, "儲存設定", self.save_settings, kind="primary").pack(anchor="w", pady=(12, 0))
+
+    def _build_settings_page(self):
+        page = tk.Frame(self.content, bg=BG)
+        self.pages["settings"] = page
+        self.page_header(page, "設定", "機密放在 .env。此頁只改常用欄位。")
+        wrap, body, _ = self._scrollable(page, bg=BG)
+        wrap.pack(fill="both", expand=True)
+        env = self._read_env()
+        self.env_vars = {}
+
+        card = self.card(body)
+        tk.Label(card, text="API 與寄信", font=("Segoe UI", 12, "bold"), fg=TEXT, bg=CARD).pack(anchor="w")
+        self._add_env_fields(card, ENV_FIELDS, env)
+
+        form_card = self.card(body)
+        tk.Label(form_card, text="手機審批表單（ngrok）", font=("Segoe UI", 12, "bold"), fg=TEXT, bg=CARD).pack(anchor="w")
+        tk.Label(
+            form_card,
+            text="讓同事用手機點 email 裡的連結填表單。先跑 start-ngrok.cmd，把 ngrok 網址填進「公開網址」。留空則只用本機。",
+            font=FONT_SMALL, fg=MUTED, bg=CARD, wraplength=720, justify="left",
+        ).pack(anchor="w", pady=(4, 6))
+        self._add_env_fields(form_card, FORM_ENV_FIELDS, env)
+        tk.Label(
+            form_card,
+            text="公開網址例如 https://你的名字.ngrok-free.dev。Authtoken（登入金鑰）必填，表單網址必須帶 ?token=… 才能開啟/送出。",
+            font=FONT_SMALL, fg=MUTED, bg=CARD, wraplength=720, justify="left",
+        ).pack(anchor="w", pady=(2, 0))
+
+        make_button(body, "儲存設定", self.save_settings, kind="primary").pack(anchor="w", pady=(4, 0))
 
     def _build_log_page(self):
         page = tk.Frame(self.content, bg=BG)
@@ -1335,6 +1363,7 @@ class NewsApp(tk.Tk):
         env = self._read_env()
         for key, var in self.env_vars.items():
             env[key] = var.get().strip()
+            os.environ[key] = env[key]
         lines = [f"{k}={v}" for k, v in env.items()]
         ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
         self.cfg = NewsConfig.load()
