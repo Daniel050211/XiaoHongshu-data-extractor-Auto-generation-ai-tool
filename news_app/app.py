@@ -80,7 +80,7 @@ ENV_FIELDS = [
 
 FORM_ENV_FIELDS = [
     ("FORM_PUBLIC_URL", "公開網址（ngrok）"),
-    ("FORM_TOKEN", "Authtoken（登入金鑰，必填）"),
+    ("FORM_TOKEN", "表單安全碼（必填）"),
 ]
 
 STATUS_LABELS = {
